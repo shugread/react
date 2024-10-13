@@ -31,6 +31,10 @@ let concurrentQueues: Array<
   HookQueue<any, any> | ClassQueue<any>,
 > | null = null;
 
+/**
+ * 将队列添加到concurrentQueues
+ * @params {HookQueue<any, any> | ClassQueue<any>} queue
+ */
 export function pushConcurrentUpdateQueue(
   queue: HookQueue<any, any> | ClassQueue<any>,
 ) {
@@ -109,6 +113,9 @@ export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
   queue.interleaved = update;
 }
 
+/**
+ * 在并发模式下将组件的更新对象加入到更新队列中
+ */
 export function enqueueConcurrentClassUpdate<State>(
   fiber: Fiber,
   queue: ClassQueue<State>,
@@ -116,6 +123,7 @@ export function enqueueConcurrentClassUpdate<State>(
   lane: Lane,
 ) {
   const interleaved = queue.interleaved;
+  // 将更新对象加入到interleaved的链表中
   if (interleaved === null) {
     // This is the first update. Create a circular list.
     update.next = update;
@@ -139,12 +147,20 @@ export function enqueueConcurrentRenderForLane(fiber: Fiber, lane: Lane) {
 // compatibility and should always be accompanied by a warning.
 export const unsafe_markUpdateLaneFromFiberToRoot = markUpdateLaneFromFiberToRoot;
 
+/**
+ * 从给定的 sourceFiber（源 Fiber）开始，向上遍历其父节点（parent）路径，直到根 Fiber（FiberRoot），
+ * 并在沿途更新每个节点的优先级 lane 信息，最终返回 FiberRoot
+ * @params {Fiber} sourceFiber
+ * @params {Lane} lane
+ */
 function markUpdateLaneFromFiberToRoot(
   sourceFiber: Fiber,
   lane: Lane,
 ): FiberRoot | null {
   // Update the source fiber's lanes
+  // 更新lanes
   sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane);
+  // 如果该 Fiber 有一个备用副本（alternate），那么也会同步更新 alternate.lanes，确保主 Fiber 和备用 Fiber 保持一致。
   let alternate = sourceFiber.alternate;
   if (alternate !== null) {
     alternate.lanes = mergeLanes(alternate.lanes, lane);
@@ -154,13 +170,17 @@ function markUpdateLaneFromFiberToRoot(
       alternate === null &&
       (sourceFiber.flags & (Placement | Hydrating)) !== NoFlags
     ) {
+      // 如果该 Fiber 没有备用副本并且带有 Placement 或 Hydrating 标志，表示该 Fiber 还没有挂载，React 会发出警告，
+      // 提醒开发者在还未挂载的 Fiber 上进行了更新。
       warnAboutUpdateOnNotYetMountedFiberInDEV(sourceFiber);
     }
   }
   // Walk the parent path to the root and update the child lanes.
+  // 从 sourceFiber 开始向上遍历父节点链
   let node = sourceFiber;
   let parent = sourceFiber.return;
   while (parent !== null) {
+    // 表示其子节点中存在优先级较高的更新任务
     parent.childLanes = mergeLanes(parent.childLanes, lane);
     alternate = parent.alternate;
     if (alternate !== null) {
@@ -176,6 +196,7 @@ function markUpdateLaneFromFiberToRoot(
     parent = parent.return;
   }
   if (node.tag === HostRoot) {
+    // 如果该节点的 tag 为 HostRoot，表示我们已经找到了 FiberRoot
     const root: FiberRoot = node.stateNode;
     return root;
   } else {

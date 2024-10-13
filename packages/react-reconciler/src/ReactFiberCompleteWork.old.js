@@ -220,6 +220,7 @@ if (supportsMutation) {
     // We only have the top Fiber that was created but we need recurse down its
     // children to find all the terminal nodes.
     let node = workInProgress.child;
+    // 遍历子节点，并将DOM节点添加到父元素
     while (node !== null) {
       if (node.tag === HostComponent || node.tag === HostText) {
         appendInitialChild(parent, node.stateNode);
@@ -846,6 +847,9 @@ function completeDehydratedSuspenseBoundary(
   }
 }
 
+/**
+ * 处理各种类型的 Fiber 节点，并在渲染结束时完成各项必要的工作，如更新 DOM、管理副作用等
+ */
 function completeWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -868,9 +872,11 @@ function completeWork(
     case Profiler:
     case ContextConsumer:
     case MemoComponent:
+      // 对于这类高阶组件，完成工作后会调用 bubbleProperties 将更新的信息传递给父组件，并返回 null 以结束该组件的处理
       bubbleProperties(workInProgress);
       return null;
     case ClassComponent: {
+      // 类组件
       const Component = workInProgress.type;
       if (isLegacyContextProvider(Component)) {
         popLegacyContext(workInProgress);
@@ -879,6 +885,7 @@ function completeWork(
       return null;
     }
     case HostRoot: {
+      // 根节点
       const fiberRoot = (workInProgress.stateNode: FiberRoot);
 
       if (enableTransitionTracing) {
@@ -957,6 +964,7 @@ function completeWork(
       return null;
     }
     case HostComponent: {
+      // 原生 DOM 元素
       popHostContext(workInProgress);
       const rootContainerInstance = getRootHostContainer();
       const type = workInProgress.type;
@@ -1007,6 +1015,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
+          // 创建DOM元素
           const instance = createInstance(
             type,
             newProps,
@@ -1015,6 +1024,7 @@ function completeWork(
             workInProgress,
           );
 
+          // 将所有子节点添加到父元素
           appendAllChildren(instance, workInProgress, false, false);
 
           workInProgress.stateNode = instance;
@@ -1044,11 +1054,13 @@ function completeWork(
       return null;
     }
     case HostText: {
+      // 文本节点
       const newText = newProps;
       if (current && workInProgress.stateNode != null) {
         const oldText = current.memoizedProps;
         // If we have an alternate, that means this is an update and we need
         // to schedule a side-effect to do the updates.
+        // 更新文本
         updateHostText(current, workInProgress, oldText, newText);
       } else {
         if (typeof newText !== 'string') {
@@ -1068,6 +1080,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
+          // 创建文本DOM元素
           workInProgress.stateNode = createTextInstance(
             newText,
             rootContainerInstance,
@@ -1080,6 +1093,7 @@ function completeWork(
       return null;
     }
     case SuspenseComponent: {
+      // SuspenseComponent
       popSuspenseContext(workInProgress);
       const nextState: null | SuspenseState = workInProgress.memoizedState;
 
@@ -1245,6 +1259,7 @@ function completeWork(
       return null;
     }
     case HostPortal:
+      // 处理 React Portal，这种场景允许你将子组件渲染到父组件以外的 DOM 节点。
       popHostContainer(workInProgress);
       updateHostContainer(current, workInProgress);
       if (current === null) {
@@ -1269,6 +1284,7 @@ function completeWork(
       return null;
     }
     case SuspenseListComponent: {
+      // SuspenseListComponent
       popSuspenseContext(workInProgress);
 
       const renderState: null | SuspenseListRenderState =

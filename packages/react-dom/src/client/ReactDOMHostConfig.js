@@ -490,6 +490,7 @@ export function appendChildToContainer(
     parentNode.insertBefore(child, container);
   } else {
     parentNode = container;
+    // 插入DOM节点
     parentNode.appendChild(child);
   }
   // This container might be used for a portal.

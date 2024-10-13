@@ -318,6 +318,12 @@ export function createHydrationContainer(
   return root;
 }
 
+/**
+ * @param {ReactNodeList} element 渲染的子元素
+ * @param {OpaqueRoot} container FiberRootNode
+ * @param {React$Component<any, any>} parentComponent
+ * @param {Function} callback
+ */
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -327,6 +333,7 @@ export function updateContainer(
   if (__DEV__) {
     onScheduleRoot(container, element);
   }
+  // 根Fiber的FiberNode
   const current = container.current;
   const eventTime = requestEventTime();
   const lane = requestUpdateLane(current);
@@ -362,11 +369,13 @@ export function updateContainer(
   const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
+  // React 开发者工具依赖于该属性名称为 element
   update.payload = {element};
 
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
     if (__DEV__) {
+      // 检查 callback 是否为一个函数
       if (typeof callback !== 'function') {
         console.error(
           'render(...): Expected the last optional `callback` argument to be a ' +

@@ -509,6 +509,9 @@ function commitBeforeMutationEffectsDeletion(deletion: Fiber) {
   }
 }
 
+/**
+ * 处理 React 中 useEffect 和 useLayoutEffect 钩子在组件卸载时的清理逻辑
+ */
 function commitHookEffectListUnmount(
   flags: HookFlags,
   finishedWork: Fiber,
@@ -516,11 +519,11 @@ function commitHookEffectListUnmount(
 ) {
   const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
-  if (lastEffect !== null) {
+  if (lastEffect !== null) { // 更新队列中最后一个副作用，如果存在，则表明该 Fiber 节点有副作用需要清理。
     const firstEffect = lastEffect.next;
     let effect = firstEffect;
     do {
-      if ((effect.tag & flags) === flags) {
+      if ((effect.tag & flags) === flags) { // 验证flags
         // Unmount
         const destroy = effect.destroy;
         effect.destroy = undefined;
@@ -538,6 +541,7 @@ function commitHookEffectListUnmount(
               setIsRunningInsertionEffect(true);
             }
           }
+          // 调用destroy函数
           safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy);
           if (__DEV__) {
             if ((flags & HookInsertion) !== NoHookEffect) {
@@ -554,6 +558,7 @@ function commitHookEffectListUnmount(
           }
         }
       }
+      // 遍历下一个副作用
       effect = effect.next;
     } while (effect !== firstEffect);
   }
@@ -582,6 +587,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
             setIsRunningInsertionEffect(true);
           }
         }
+        // 运行副作用创建
         effect.destroy = create();
         if (__DEV__) {
           if ((flags & HookInsertion) !== NoHookEffect) {
@@ -2995,16 +3001,19 @@ export function commitPassiveUnmountEffects(firstChild: Fiber): void {
 }
 
 function commitPassiveUnmountEffects_begin() {
+  // 循环处理 nextEffect
   while (nextEffect !== null) {
     const fiber = nextEffect;
     const child = fiber.child;
 
     if ((nextEffect.flags & ChildDeletion) !== NoFlags) {
-      const deletions = fiber.deletions;
+      // 节点的子节点需要被删除
+      const deletions = fiber.deletions; // 获取待删除的子 fiber 节点
       if (deletions !== null) {
         for (let i = 0; i < deletions.length; i++) {
           const fiberToDelete = deletions[i];
           nextEffect = fiberToDelete;
+          // 处理删除树中的副作用
           commitPassiveUnmountEffectsInsideOfDeletedTree_begin(
             fiberToDelete,
             fiber,
@@ -3023,6 +3032,7 @@ function commitPassiveUnmountEffects_begin() {
           //
           // We can't disconnect `alternate` on nodes that haven't been deleted
           // yet, but we can disconnect the `sibling` and `child` pointers.
+          // 断开已删除 fiber 的兄弟节点和子节点指针
           const previousFiber = fiber.alternate;
           if (previousFiber !== null) {
             let detachedChild = previousFiber.child;
@@ -3037,11 +3047,13 @@ function commitPassiveUnmountEffects_begin() {
           }
         }
 
+        // 继续遍历子树
         nextEffect = fiber;
       }
     }
 
     if ((fiber.subtreeFlags & PassiveMask) !== NoFlags && child !== null) {
+      // 继续向下处理子节点的被动副作用
       child.return = fiber;
       nextEffect = child;
     } else {
@@ -3054,6 +3066,7 @@ function commitPassiveUnmountEffects_complete() {
   while (nextEffect !== null) {
     const fiber = nextEffect;
     if ((fiber.flags & Passive) !== NoFlags) {
+      // 该节点有被动副作用需要卸载
       setCurrentDebugFiberInDEV(fiber);
       commitPassiveUnmountOnFiber(fiber);
       resetCurrentDebugFiberInDEV();
@@ -3061,11 +3074,13 @@ function commitPassiveUnmountEffects_complete() {
 
     const sibling = fiber.sibling;
     if (sibling !== null) {
+      // 继续处理兄弟节点
       sibling.return = fiber.return;
       nextEffect = sibling;
       return;
     }
 
+    // 没有兄弟节点
     nextEffect = fiber.return;
   }
 }

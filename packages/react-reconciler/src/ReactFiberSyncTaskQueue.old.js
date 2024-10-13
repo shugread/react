@@ -48,7 +48,11 @@ export function flushSyncCallbacksOnlyInLegacyMode() {
   }
 }
 
+/**
+ * 处理 React 中的同步回调队列 (syncQueue)。这些同步回调通常是在渲染或提交阶段触发的，确保高优先级的任务能够立即执行。
+ */
 export function flushSyncCallbacks() {
+  // 如果当前没有正在处理同步队列，开始处理同步队列
   if (!isFlushingSyncQueue && syncQueue !== null) {
     // Prevent re-entrance.
     isFlushingSyncQueue = true;
@@ -60,20 +64,24 @@ export function flushSyncCallbacks() {
       // TODO: Is this necessary anymore? The only user code that runs in this
       // queue is in the render or commit phases.
       setCurrentUpdatePriority(DiscreteEventPriority);
+      // 遍历 syncQueue 中的每个回调
       for (; i < queue.length; i++) {
         let callback = queue[i];
         do {
           callback = callback(isSync);
         } while (callback !== null);
       }
+      // 所有回调执行完毕
       syncQueue = null;
       includesLegacySyncCallbacks = false;
     } catch (error) {
       // If something throws, leave the remaining callbacks on the queue.
+      // 将剩余的回调保留在 syncQueue 中，继续处理
       if (syncQueue !== null) {
         syncQueue = syncQueue.slice(i + 1);
       }
       // Resume flushing in the next tick
+      // 稍后继续执行剩余的回调
       scheduleCallback(ImmediatePriority, flushSyncCallbacks);
       throw error;
     } finally {

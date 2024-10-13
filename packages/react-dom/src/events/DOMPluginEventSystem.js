@@ -238,6 +238,7 @@ function processDispatchQueueItemsInOrder(
 ): void {
   let previousInstance;
   if (inCapturePhase) {
+    // 捕获阶段执行
     for (let i = dispatchListeners.length - 1; i >= 0; i--) {
       const {instance, currentTarget, listener} = dispatchListeners[i];
       if (instance !== previousInstance && event.isPropagationStopped()) {
@@ -247,6 +248,7 @@ function processDispatchQueueItemsInOrder(
       previousInstance = instance;
     }
   } else {
+    // 冒泡执行
     for (let i = 0; i < dispatchListeners.length; i++) {
       const {instance, currentTarget, listener} = dispatchListeners[i];
       if (instance !== previousInstance && event.isPropagationStopped()) {
@@ -281,6 +283,7 @@ function dispatchEventsForPlugins(
 ): void {
   const nativeEventTarget = getEventTarget(nativeEvent);
   const dispatchQueue: DispatchQueue = [];
+  // 获取所有处理函数
   extractEvents(
     dispatchQueue,
     domEventName,
@@ -290,6 +293,7 @@ function dispatchEventsForPlugins(
     eventSystemFlags,
     targetContainer,
   );
+  // 执行处理函数
   processDispatchQueue(dispatchQueue, eventSystemFlags);
 }
 
@@ -322,7 +326,15 @@ export function listenToNonDelegatedEvent(
     listenerSet.add(listenerSetKey);
   }
 }
-
+/**
+ * 注听一个原生事件
+ * 
+ * 该函数用于在给定的目标上注册一个原生事件监听器React使用这个函数来处理与浏览器原生事件系统的交互
+ * 
+ * @param {DOMEventName} domEventName - 要监听的原生事件名称
+ * @param {boolean} isCapturePhaseListener - 指示是否在捕获阶段监听事件
+ * @param {EventTarget} target - 要监听事件的目标对象
+ */
 export function listenToNativeEvent(
   domEventName: DOMEventName,
   isCapturePhaseListener: boolean,
@@ -339,6 +351,7 @@ export function listenToNativeEvent(
   }
 
   let eventSystemFlags = 0;
+  // 如果是捕获阶段监听，修改事件系统标志
   if (isCapturePhaseListener) {
     eventSystemFlags |= IS_CAPTURE_PHASE;
   }
@@ -383,19 +396,32 @@ const listeningMarker =
     .toString(36)
     .slice(2);
 
+/**
+ * 监听指定元素及其子元素的所有受支持事件
+ * 
+ * 该函数用于在一个元素上设置事件监听器，以监听所有受支持的原生事件
+ * 它首先检查元素是否已经设置了监听器（通过一个自定义的标志`listeningMarker`）
+ * 如果没有，则在元素及其文档上设置监听器，包括处理特殊的`selectionchange`事件
+ * 
+ * @param {EventTarget} rootContainerElement 要监听事件的根容器元素
+ */
 export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
   if (!(rootContainerElement: any)[listeningMarker]) {
     (rootContainerElement: any)[listeningMarker] = true;
     allNativeEvents.forEach(domEventName => {
       // We handle selectionchange separately because it
       // doesn't bubble and needs to be on the document.
+      // `selectionchange`事件单独处理，因为它不冒泡且需要在文档上监听
       if (domEventName !== 'selectionchange') {
+        // 委托事件，直接监听
         if (!nonDelegatedEvents.has(domEventName)) {
           listenToNativeEvent(domEventName, false, rootContainerElement);
         }
+        // 非委托事件实现实现事件委托
         listenToNativeEvent(domEventName, true, rootContainerElement);
       }
     });
+    // 获取元素所属的文档
     const ownerDocument =
       (rootContainerElement: any).nodeType === DOCUMENT_NODE
         ? rootContainerElement
@@ -403,6 +429,7 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
     if (ownerDocument !== null) {
       // The selectionchange event also needs deduplication
       // but it is attached to the document.
+      // 如果文档存在，为`selectionchange`事件设置监听器
       if (!(ownerDocument: any)[listeningMarker]) {
         (ownerDocument: any)[listeningMarker] = true;
         listenToNativeEvent('selectionchange', false, ownerDocument);
@@ -410,7 +437,18 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
     }
   }
 }
-
+/**
+ * 给定目标容器添加浏览器事件监听器
+ * 
+ * 此函数用于在特定的DOM容器上添加事件监听器，考虑了不同的事件系统标志和监听器的捕获阶段
+ * 还支持对于某些需要延迟监听的旧版FB支持情况
+ * 
+ * @param {EventTarget} targetContainer - 目标DOM容器
+ * @param {DOMEventName} domEventName - 要监听的DOM事件名称
+ * @param {EventSystemFlags} eventSystemFlags - 事件系统标志
+ * @param {boolean} isCapturePhaseListener - 是否在捕获阶段监听事件
+ * @param {boolean} [isDeferredListenerForLegacyFBSupport] - 是否为旧版FB支持延迟监听
+ */
 function addTrappedEventListener(
   targetContainer: EventTarget,
   domEventName: DOMEventName,
@@ -425,6 +463,7 @@ function addTrappedEventListener(
   );
   // If passive option is not supported, then the event will be
   // active and not passive.
+  // 如果浏览器支持被动选项，并且事件是特定的，则默认为被动监听
   let isPassiveListener = undefined;
   if (passiveBrowserEventsSupported) {
     // Browsers introduced an intervention, making these events
@@ -703,6 +742,7 @@ export function accumulateSinglePhaseListeners(
 
       // Standard React on* listeners, i.e. onClick or onClickCapture
       if (reactEventName !== null) {
+        // 获取事件的处理函数
         const listener = getListener(instance, reactEventName);
         if (listener != null) {
           listeners.push(

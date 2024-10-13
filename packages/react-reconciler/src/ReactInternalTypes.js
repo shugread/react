@@ -64,6 +64,7 @@ export type Dependencies = {
 
 // A Fiber is work on a Component that needs to be done or was done. There can
 // be more than one per component.
+// Fiber 是组件在需要或已经完成的工作。每个组件可以有多个 Fiber。
 export type Fiber = {|
   // These first fields are conceptually members of an Instance. This used to
   // be split into a separate type and intersected with the other Fiber fields,
@@ -74,58 +75,75 @@ export type Fiber = {|
   // break this out into a separate object to avoid copying so much to the
   // alternate versions of the tree. We put this on a single object for now to
   // minimize the number of objects created during the initial render.
+  // Instance 在组件的所有版本间共享。我们可以很容易地把这个对象单独拿出来，
+  // 以减少在初始渲染时创建的对象数量。
 
   // Tag identifying the type of fiber.
+  // 标识 Fiber 类型的标签。
   tag: WorkTag,
 
   // Unique identifier of this child.
+  // 这个子组件的唯一标识符。
   key: null | string,
 
   // The value of element.type which is used to preserve the identity during
   // reconciliation of this child.
+  // 用于在和解过程中保持组件身份的元素类型。
   elementType: any,
 
   // The resolved function/class/ associated with this fiber.
+  // 与这个 Fiber 关联的已解析的函数/类。
   type: any,
 
   // The local state associated with this fiber.
+  // 与这个 Fiber 关联的本地状态。
   stateNode: any,
 
   // Conceptual aliases
   // parent : Instance -> return The parent happens to be the same as the
   // return fiber since we've merged the fiber and instance.
+  // parent: Instance -> return 父组件恰好和返回 Fiber 一样，因为我们合并了 Fiber 和 Instance。
 
   // Remaining fields belong to Fiber
-
+  // 剩下的字段属于 Fiber
   // The Fiber to return to after finishing processing this one.
   // This is effectively the parent, but there can be multiple parents (two)
   // so this is only the parent of the thing we're currently processing.
   // It is conceptually the same as the return address of a stack frame.
+  // 在处理完当前 Fiber 后需要返回的 Fiber。这相当于父组件，但由于可能有多个父组件（两个），
+  // 所以这只代表当前正在处理的父组件。它概念上和栈帧的返回地址一样。
   return: Fiber | null,
 
   // Singly Linked List Tree Structure.
+  // 单链表树结构。
   child: Fiber | null,
   sibling: Fiber | null,
   index: number,
 
   // The ref last used to attach this node.
   // I'll avoid adding an owner field for prod and model that as functions.
+  // 最后用于附加这个节点的 ref。
   ref:
     | null
     | (((handle: mixed) => void) & {_stringRef: ?string, ...})
     | RefObject,
 
   // Input is the data coming into process this fiber. Arguments. Props.
+  // 输入是处理这个 Fiber 的数据。参数。Props。
   pendingProps: any, // This type will be more specific once we overload the tag.
+  // 用于创建输出的 Props。
   memoizedProps: any, // The props used to create the output.
 
   // A queue of state updates and callbacks.
+  // 一组状态更新和回调队列。
   updateQueue: mixed,
 
   // The state used to create the output
+  // 用于创建输出的状态。
   memoizedState: any,
 
   // Dependencies (contexts, events) for this fiber, if it has any
+  // 这个 Fiber 的依赖项（上下文、事件），如果有的话。
   dependencies: Dependencies | null,
 
   // Bitfield that describes properties about the fiber and its subtree. E.g.
@@ -134,6 +152,9 @@ export type Fiber = {|
   // parent. Additional flags can be set at creation time, but after that the
   // value should remain unchanged throughout the fiber's lifetime, particularly
   // before its child fibers are created.
+  // 描述 Fiber 及其子树属性的位字段。例如，ConcurrentMode 标志表示子树是否默认应为异步。
+  // 当 Fiber 被创建时，它会继承其父组件的模式。可以在创建时设置额外的标志，但之后这个值应该保持不变，
+  // 尤其是在子 Fiber 被创建之前。
   mode: TypeOfMode,
 
   // Effect
@@ -142,11 +163,13 @@ export type Fiber = {|
   deletions: Array<Fiber> | null,
 
   // Singly linked list fast path to the next fiber with side-effects.
+  // 到下一个有副作用的 Fiber 的单链表快速路径。
   nextEffect: Fiber | null,
 
   // The first and last fiber with side-effect within this subtree. This allows
   // us to reuse a slice of the linked list when we reuse the work done within
   // this fiber.
+  // 这个子树中第一个和最后一个有副作用的 Fiber。这允许我们在重用这个 Fiber 中的工作时重用链表的一部分。
   firstEffect: Fiber | null,
   lastEffect: Fiber | null,
 
@@ -156,6 +179,7 @@ export type Fiber = {|
   // This is a pooled version of a Fiber. Every fiber that gets updated will
   // eventually have a pair. There are cases when we can clean up pairs to save
   // memory if we need to.
+  // alternate 通常表示之前已经渲染完成的状态
   alternate: Fiber | null,
 
   // Time spent rendering this Fiber and its descendants for the current update.

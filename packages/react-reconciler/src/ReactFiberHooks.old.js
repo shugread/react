@@ -370,6 +370,9 @@ function areHookInputsEqual(
   return true;
 }
 
+/**
+ * 管理当前 Fiber 的 hooks 状态，包括创建、更新或重用 hooks，并根据传入的 Component 和 props 调用组件的渲染函数。
+ */
 export function renderWithHooks<Props, SecondArg>(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -392,6 +395,7 @@ export function renderWithHooks<Props, SecondArg>(
       current !== null && current.type !== workInProgress.type;
   }
 
+  // 重置 memoizedState 和 updateQueue，以确保在渲染时 Fiber 处于初始状态。
   workInProgress.memoizedState = null;
   workInProgress.updateQueue = null;
   workInProgress.lanes = NoLanes;
@@ -410,6 +414,7 @@ export function renderWithHooks<Props, SecondArg>(
   // Using memoizedState to differentiate between mount/update only works if at least one stateful hook is used.
   // Non-stateful hooks (e.g. context) don't get added to memoizedState,
   // so memoizedState would be null during updates and mounts.
+  // 设置 Dispatcher，通过不同的Dispatcher，区分组件首次挂载和更新时的不同处理逻辑
   if (__DEV__) {
     if (current !== null && current.memoizedState !== null) {
       ReactCurrentDispatcher.current = HooksDispatcherOnUpdateInDEV;
@@ -430,17 +435,21 @@ export function renderWithHooks<Props, SecondArg>(
         : HooksDispatcherOnUpdate;
   }
 
+  // 调用组件函数，children 是组件渲染的结果
   let children = Component(props, secondArg);
 
   // Check if there was a render phase update
+  // 检查是否在渲染过程中调度了更新
   if (didScheduleRenderPhaseUpdateDuringThisPass) {
     // Keep rendering in a loop for as long as render phase updates continue to
     // be scheduled. Use a counter to prevent infinite loops.
+    // 如果在渲染阶段调度了更新，React 会再次渲染组件，直到没有新的更新调度
     let numberOfReRenders: number = 0;
     do {
       didScheduleRenderPhaseUpdateDuringThisPass = false;
       localIdCounter = 0;
 
+      // 限制更新的次数（避免无限循环）。
       if (numberOfReRenders >= RE_RENDER_LIMIT) {
         throw new Error(
           'Too many re-renders. React limits the number of renders to prevent ' +
@@ -470,12 +479,14 @@ export function renderWithHooks<Props, SecondArg>(
         ? HooksDispatcherOnRerenderInDEV
         : HooksDispatcherOnRerender;
 
+        // 再次渲染组件
       children = Component(props, secondArg);
     } while (didScheduleRenderPhaseUpdateDuringThisPass);
   }
 
   // We can assume the previous dispatcher is always this one, since we set it
   // at the beginning of the render phase and there's no re-entrance.
+  // 重置为 ContextOnlyDispatcher，用于清理上下文
   ReactCurrentDispatcher.current = ContextOnlyDispatcher;
 
   if (__DEV__) {
@@ -2230,6 +2241,10 @@ function dispatchReducerAction<S, A>(
   markUpdateInDevTools(fiber, lane, action);
 }
 
+/**
+ * setState执行的函数，
+ * fiber和queue通过bind传入
+ */
 function dispatchSetState<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
@@ -2256,6 +2271,7 @@ function dispatchSetState<S, A>(
   };
 
   if (isRenderPhaseUpdate(fiber)) {
+    // 暂时不能更新，将update入栈
     enqueueRenderPhaseUpdate(queue, update);
   } else {
     const alternate = fiber.alternate;
@@ -2275,7 +2291,7 @@ function dispatchSetState<S, A>(
         }
         try {
           const currentState: S = (queue.lastRenderedState: any);
-          const eagerState = lastRenderedReducer(currentState, action);
+          const eagerState = lastRenderedReducer(currentState, action); // 获取最新状态
           // Stash the eagerly computed state, and the reducer used to compute
           // it, on the update object. If the reducer hasn't changed by the
           // time we enter the render phase, then the eager state can be used
@@ -2306,6 +2322,7 @@ function dispatchSetState<S, A>(
       }
     }
 
+    // 将更新加入并发队列
     const root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
     if (root !== null) {
       const eventTime = requestEventTime();

@@ -89,9 +89,15 @@ function ReactDOMRoot(internalRoot: FiberRoot) {
   this._internalRoot = internalRoot;
 }
 
+/**
+ * 渲染元素的起始函数root.render()
+ * @param {DOMElement} container React的根节点
+ * @param {ReactNodeList} children 根节点的子元素
+ */
 ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function(
   children: ReactNodeList,
 ): void {
+  // FiberRootNode
   const root = this._internalRoot;
   if (root === null) {
     throw new Error('Cannot update an unmounted root.');
@@ -173,6 +179,7 @@ export function createRoot(
   container: Element | Document | DocumentFragment,
   options?: CreateRootOptions,
 ): RootType {
+  // 检查根节点的元素类型
   if (!isValidContainer(container)) {
     throw new Error('createRoot(...): Target container is not a DOM element.');
   }
@@ -243,6 +250,7 @@ export function createRoot(
     container.nodeType === COMMENT_NODE
       ? (container.parentNode: any)
       : container;
+  // 监听所有支持的事件
   listenToAllSupportedEvents(rootContainerElement);
 
   return new ReactDOMRoot(root);

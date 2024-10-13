@@ -213,17 +213,26 @@ export function createUpdate(eventTime: number, lane: Lane): Update<*> {
   return update;
 }
 
+/**
+ * 将一个更新对象（update）加入到指定 fiber 节点的更新队列中，并返回 FiberRoot（根 Fiber）
+ * @param fiber fiber节点
+ * @param update 更新对象
+ * @param lane 优先级
+ */
 export function enqueueUpdate<State>(
   fiber: Fiber,
   update: Update<State>,
   lane: Lane,
 ): FiberRoot | null {
+  // 获取updateQueue（更新队列）
   const updateQueue = fiber.updateQueue;
   if (updateQueue === null) {
     // Only occurs if the fiber has been unmounted.
+    // 仅当fiber已卸载时才会发生。
     return null;
   }
 
+  // sharedQueue 是 updateQueue 中的共享队列，存储着该 fiber 节点的待处理更新
   const sharedQueue: SharedQueue<State> = (updateQueue: any).shared;
 
   if (__DEV__) {
@@ -242,9 +251,12 @@ export function enqueueUpdate<State>(
   }
 
   if (isUnsafeClassRenderPhaseUpdate(fiber)) {
+    // 函数调用 isUnsafeClassRenderPhaseUpdate(fiber) 来判断当前更新是否为 "不安全的渲染阶段更新"。
+    // 这种更新通常发生在 render 方法或生命周期方法中直接调用 setState，这是一种不推荐的模式。
     // This is an unsafe render phase update. Add directly to the update
     // queue so we can process it immediately during the current render.
     const pending = sharedQueue.pending;
+    // 更新会直接添加到 sharedQueue.pending
     if (pending === null) {
       // This is the first update. Create a circular list.
       update.next = update;
@@ -252,6 +264,7 @@ export function enqueueUpdate<State>(
       update.next = pending.next;
       pending.next = update;
     }
+    // 指向新更新
     sharedQueue.pending = update;
 
     // Update the childLanes even though we're most likely already rendering
@@ -371,6 +384,9 @@ export function enqueueCapturedUpdate<State>(
   queue.lastBaseUpdate = capturedUpdate;
 }
 
+/**
+ * 用来处理不同类型的 update（更新），并根据 update.tag 决定如何更新组件的状态。
+ */
 function getStateFromUpdate<State>(
   workInProgress: Fiber,
   queue: UpdateQueue<State>,
@@ -381,12 +397,14 @@ function getStateFromUpdate<State>(
 ): any {
   switch (update.tag) {
     case ReplaceState: {
+      // 表示完全替换当前的状态
       const payload = update.payload;
       if (typeof payload === 'function') {
         // Updater function
         if (__DEV__) {
           enterDisallowedContextReadInDEV();
         }
+        // 接收当前的 prevState 和 nextProps，并返回新的状态值。
         const nextState = payload.call(instance, prevState, nextProps);
         if (__DEV__) {
           if (
@@ -405,14 +423,17 @@ function getStateFromUpdate<State>(
         return nextState;
       }
       // State object
+      // 直接用该对象替换当前的状态
       return payload;
     }
     case CaptureUpdate: {
+      // React 捕获错误时触发的更新
       workInProgress.flags =
         (workInProgress.flags & ~ShouldCapture) | DidCapture;
     }
     // Intentional fallthrough
     case UpdateState: {
+      // 部分状态更新
       const payload = update.payload;
       let partialState;
       if (typeof payload === 'function') {
@@ -441,19 +462,26 @@ function getStateFromUpdate<State>(
       }
       if (partialState === null || partialState === undefined) {
         // Null and undefined are treated as no-ops.
+        // 没有需要更新的内容
         return prevState;
       }
       // Merge the partial state and the previous state.
+      // 合并状态
       return assign({}, prevState, partialState);
     }
     case ForceUpdate: {
+      // 强制更新，通常用于跳过 shouldComponentUpdate 检查
       hasForceUpdate = true;
       return prevState;
     }
   }
+  // 未匹配到任何已知类型，表示状态保持不变
   return prevState;
 }
 
+/**
+ * 遍历组件的更新队列，应用更新操作，并计算新的组件状态。
+ */
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   props: any,
@@ -461,8 +489,10 @@ export function processUpdateQueue<State>(
   renderLanes: Lanes,
 ): void {
   // This is always non-null on a ClassComponent or HostRoot
+  // 待处理更新的队列
   const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
 
+  // 跟踪是否存在强制更新
   hasForceUpdate = false;
 
   if (__DEV__) {
@@ -473,10 +503,12 @@ export function processUpdateQueue<State>(
   let lastBaseUpdate = queue.lastBaseUpdate;
 
   // Check if there are pending updates. If so, transfer them to the base queue.
+  // 当前渲染周期中尚未处理的更新
   let pendingQueue = queue.shared.pending;
   if (pendingQueue !== null) {
     queue.shared.pending = null;
 
+    // 将pendingQueue附加到基础更新队列（firstBaseUpdate 和 lastBaseUpdate）。
     // The pending queue is circular. Disconnect the pointer between first
     // and last so that it's non-circular.
     const lastPendingUpdate = pendingQueue;
@@ -490,6 +522,8 @@ export function processUpdateQueue<State>(
     }
     lastBaseUpdate = lastPendingUpdate;
 
+    // pendingQueue的双向链表被展开成单向链表，
+    // firstBaseUpdate指向第一个元素，lastBaseUpdate指向最后一个元素
     // If there's a current queue, and it's different from the base queue, then
     // we need to transfer the updates to that queue, too. Because the base
     // queue is a singly-linked list with no cycles, we can append to both
@@ -497,6 +531,7 @@ export function processUpdateQueue<State>(
     // TODO: Pass `current` as argument
     const current = workInProgress.alternate;
     if (current !== null) {
+      // 如果当前 Fiber 节点有一个备用节点（current），那么需要确保这两个队列同步
       // This is always non-null on a ClassComponent or HostRoot
       const currentQueue: UpdateQueue<State> = (current.updateQueue: any);
       const currentLastBaseUpdate = currentQueue.lastBaseUpdate;
@@ -524,13 +559,16 @@ export function processUpdateQueue<State>(
     let newLastBaseUpdate = null;
 
     let update = firstBaseUpdate;
+    // 遍历整个更新队列
     do {
       const updateLane = update.lane;
       const updateEventTime = update.eventTime;
+      // 根据当前的渲染优先级判断是否需要应用该更新
       if (!isSubsetOfLanes(renderLanes, updateLane)) {
         // Priority is insufficient. Skip this update. If this is the first
         // skipped update, the previous update/state is the new base
         // update/state.
+        // 不需要更新
         const clone: Update<State> = {
           eventTime: updateEventTime,
           lane: updateLane,
@@ -551,6 +589,7 @@ export function processUpdateQueue<State>(
         newLanes = mergeLanes(newLanes, updateLane);
       } else {
         // This update does have sufficient priority.
+        // 需要更新
 
         if (newLastBaseUpdate !== null) {
           const clone: Update<State> = {
@@ -570,6 +609,7 @@ export function processUpdateQueue<State>(
         }
 
         // Process this update.
+        // 处理更新
         newState = getStateFromUpdate(
           workInProgress,
           queue,
@@ -578,6 +618,7 @@ export function processUpdateQueue<State>(
           props,
           instance,
         );
+        // 如果更新中包含 callback，并且该更新尚未提交，函数会将该回调加入 queue.effects 列表中，等待渲染结束时执行。
         const callback = update.callback;
         if (
           callback !== null &&
@@ -594,12 +635,14 @@ export function processUpdateQueue<State>(
           }
         }
       }
+      // 遍历下一个更新
       update = update.next;
       if (update === null) {
         pendingQueue = queue.shared.pending;
         if (pendingQueue === null) {
           break;
         } else {
+          // 发现队列中有新的挂起更新（通常是由 reducer 内部触发的），则继续处理这些更新，直到所有更新处理完毕。
           // An update was scheduled from inside a reducer. Add the new
           // pending updates to the end of the list and keep processing.
           const lastPendingUpdate = pendingQueue;
@@ -625,10 +668,12 @@ export function processUpdateQueue<State>(
     // Interleaved updates are stored on a separate queue. We aren't going to
     // process them during this render, but we do need to track which lanes
     // are remaining.
+    // Interleaved updates 是在某些特殊情况下的更新，例如并发模式下的优先级调整
     const lastInterleaved = queue.shared.interleaved;
     if (lastInterleaved !== null) {
       let interleaved = lastInterleaved;
       do {
+        // 合并到当前的 lanes 中
         newLanes = mergeLanes(newLanes, interleaved.lane);
         interleaved = ((interleaved: any).next: Update<State>);
       } while (interleaved !== lastInterleaved);
@@ -647,6 +692,7 @@ export function processUpdateQueue<State>(
     // that regardless.
     markSkippedUpdateLanes(newLanes);
     workInProgress.lanes = newLanes;
+    // 存储新状态
     workInProgress.memoizedState = newState;
   }
 

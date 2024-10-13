@@ -386,6 +386,9 @@ function computeExpirationTime(lane: Lane, currentTime: number) {
   }
 }
 
+/**
+ * 用于检测是否有 lanes（更新通道）因其他高优先级任务而长时间未被处理，若存在这种情况，React 会将它们标记为“已过期”，以确保这些任务能尽早执行。
+ */
 export function markStarvedLanesAsExpired(
   root: FiberRoot,
   currentTime: number,
@@ -571,11 +574,15 @@ export function createLaneMap<T>(initial: T): LaneMap<T> {
   return laneMap;
 }
 
+/**
+ * 标记指定的 FiberRoot 节点有新的更新
+ */
 export function markRootUpdated(
   root: FiberRoot,
   updateLane: Lane,
   eventTime: number,
 ) {
+  // 将当前更新的 lane（优先级通道）标记到 pendingLanes 上。
   root.pendingLanes |= updateLane;
 
   // If there are any suspended transitions, it's possible this new update
@@ -591,14 +598,17 @@ export function markRootUpdated(
   // idle updates until after all the regular updates have finished; there's no
   // way it could unblock a transition.
   if (updateLane !== IdleLane) {
+    // 将 root.suspendedLanes 和 root.pingedLanes 清空
     root.suspendedLanes = NoLanes;
     root.pingedLanes = NoLanes;
   }
 
   const eventTimes = root.eventTimes;
+  // 计算当前更新优先级的索引
   const index = laneToIndex(updateLane);
   // We can always overwrite an existing timestamp because we prefer the most
   // recent event, and we assume time is monotonically increasing.
+  // 更新为当前 eventTime，这一时间戳用于记录每个优先级更新的最新发生时间
   eventTimes[index] = eventTime;
 }
 

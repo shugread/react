@@ -44,13 +44,25 @@ if (enableSymbolFallbackForWWW) {
 } else {
   REACT_MODULE_REFERENCE = Symbol.for('react.module.reference');
 }
-
+/**
+ * 检查给定的类型是否为有效的元素类型。
+ * 
+ * @param {mixed} type - 需要检查的类型。
+ * @returns {boolean} 如果类型有效，则返回true；否则返回false。
+ * 
+ * 此函数用于确定给定的类型是否可以作为React元素的类型。
+ * 它检查类型是否为字符串、函数，或者是否属于React特定的类型（如Fragment、Profiler等）。
+ * 这是为了确保元素类型在React中是可识别和可处理的。
+ */
 export default function isValidElementType(type: mixed) {
+  // 如果类型是字符串或函数，返回true
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
   }
 
   // Note: typeof might be other than 'symbol' or 'number' (e.g. if it's a polyfill).
+  // 注：类型可能是'symbol'或'number'之外的其他值（例如，如果它是polyfill）。
+  // 检查类型是否为React特定的类型之一
   if (
     type === REACT_FRAGMENT_TYPE ||
     type === REACT_PROFILER_TYPE ||
@@ -67,6 +79,7 @@ export default function isValidElementType(type: mixed) {
     return true;
   }
 
+  // 如果类型是对象且不为null，进行进一步检查
   if (typeof type === 'object' && type !== null) {
     if (
       type.$$typeof === REACT_LAZY_TYPE ||

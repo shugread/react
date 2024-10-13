@@ -159,6 +159,9 @@ function unwindWork(
   }
 }
 
+/**
+ * 当渲染过程中发生中断时，对未完成的工作（interruptedWork）进行清理和恢复。
+ */
 function unwindInterruptedWork(
   current: Fiber | null,
   interruptedWork: Fiber,

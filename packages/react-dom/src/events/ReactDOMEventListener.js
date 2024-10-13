@@ -82,26 +82,42 @@ export function createEventListenerWrapper(
     targetContainer,
   );
 }
-
+/**
+ * 根据事件优先级创建事件监听器包装函数
+ * 
+ * 此函数根据给定的DOM事件名称确定事件的优先级，并返回相应的事件派发函数的包装器
+ * 包装器函数绑定了目标容器、事件系统标志和事件名称，确保了事件派发时的一致性和正确性
+ * 
+ * @param targetContainer 事件目标容器，通常是一个DOM元素或React组件实例
+ * @param domEventName DOM事件名称，用于确定事件的优先级
+ * @param eventSystemFlags 事件系统标志，用于传递额外的事件处理信息或配置
+ * @returns 返回一个绑定了一定上下文和参数的事件派发函数
+ */
 export function createEventListenerWrapperWithPriority(
   targetContainer: EventTarget,
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
 ): Function {
+  // 根据DOM事件名称获取事件优先级
   const eventPriority = getEventPriority(domEventName);
   let listenerWrapper;
+  // 根据事件优先级选择合适的事件派发函数
   switch (eventPriority) {
+    // 对于离散事件，使用dispatchDiscreteEvent函数
     case DiscreteEventPriority:
       listenerWrapper = dispatchDiscreteEvent;
       break;
+    // 对于连续事件，使用dispatchContinuousEvent函数
     case ContinuousEventPriority:
       listenerWrapper = dispatchContinuousEvent;
       break;
+    // 对于默认优先级或其他情况，使用dispatchEvent函数
     case DefaultEventPriority:
     default:
       listenerWrapper = dispatchEvent;
       break;
   }
+  // 返回事件派发函数的绑定版本，确保了函数在正确的作用域下执行，并传递了必要的参数
   return listenerWrapper.bind(
     null,
     domEventName,

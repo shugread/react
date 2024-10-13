@@ -114,7 +114,14 @@ if (__DEV__) {
     hasBadMapPolyfill = true;
   }
 }
-
+/**
+ * Fiber节点构造函数
+ * 
+ * @param {WorkTag} tag - 表示Fiber类型的工作标签
+ * @param {mixed} pendingProps - 待处理的属性
+ * @param {null | string} key - Fiber节点的唯一键
+ * @param {TypeOfMode} mode - 指定Fiber节点的行为模式
+ */
 function FiberNode(
   tag: WorkTag,
   pendingProps: mixed,
@@ -122,6 +129,7 @@ function FiberNode(
   mode: TypeOfMode,
 ) {
   // Instance
+  // Fiber节点实例属性
   this.tag = tag;
   this.key = key;
   this.elementType = null;
@@ -129,6 +137,7 @@ function FiberNode(
   this.stateNode = null;
 
   // Fiber
+  // Fiber节点链表属性
   this.return = null;
   this.child = null;
   this.sibling = null;
@@ -136,24 +145,30 @@ function FiberNode(
 
   this.ref = null;
 
+  // Fiber节点属性和队列
   this.pendingProps = pendingProps;
   this.memoizedProps = null;
   this.updateQueue = null;
   this.memoizedState = null;
   this.dependencies = null;
 
+  // 指定Fiber节点的行为模式
   this.mode = mode;
 
   // Effects
+  // Fiber节点副作用属性
   this.flags = NoFlags;
   this.subtreeFlags = NoFlags;
   this.deletions = null;
 
+  // Fiber节点的调度优先级
   this.lanes = NoLanes;
   this.childLanes = NoLanes;
 
+  // Fiber 的池化版本
   this.alternate = null;
 
+  // 如果启用了Profiler计时器
   if (enableProfilerTimer) {
     // Note: The following is done to avoid a v8 performance cliff.
     //
@@ -246,6 +261,11 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
 }
 
 // This is used to create an alternate fiber to do work on.
+/**
+ * 为当前 Fiber 节点创建一个备用的 Fiber 节点，供接下来的渲染操作使用。
+ * 这个备用 Fiber 节点被称为 "工作中的 Fiber"，是 React 的 Fiber 树双缓冲机制的一部分。
+ * React 通过这种机制，可以同时保留当前的 Fiber 树并对其备用副本进行操作，从而支持高效的增量更新和并发渲染。
+ */
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   let workInProgress = current.alternate;
   if (workInProgress === null) {
@@ -254,12 +274,14 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // node that we're free to reuse. This is lazily created to avoid allocating
     // extra objects for things that are never updated. It also allow us to
     // reclaim the extra memory if needed.
+    // 当前节点还没有备用副本，创建新的备用 Fiber 节点
     workInProgress = createFiber(
       current.tag,
       pendingProps,
       current.key,
       current.mode,
     );
+    //  继承了 current 的一些基本属性
     workInProgress.elementType = current.elementType;
     workInProgress.type = current.type;
     workInProgress.stateNode = current.stateNode;
@@ -272,9 +294,11 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
       workInProgress._debugHookTypes = current._debugHookTypes;
     }
 
+    // 形成双向引用
     workInProgress.alternate = current;
     current.alternate = workInProgress;
   } else {
+    // 重用已有的 Fiber 副本
     workInProgress.pendingProps = pendingProps;
     // Needed because Blocks store data on type.
     workInProgress.type = current.type;
@@ -299,6 +323,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
 
   // Reset all effects except static ones.
   // Static effects are not specific to a render.
+  // 复制属性
   workInProgress.flags = current.flags & StaticMask;
   workInProgress.childLanes = current.childLanes;
   workInProgress.lanes = current.lanes;
@@ -465,6 +490,9 @@ export function createHostRootFiber(
   return createFiber(HostRoot, null, null, mode);
 }
 
+/**
+ * 根据组件类型和传入的 props 创建新的 Fiber 节点的函数
+ */
 export function createFiberFromTypeAndProps(
   type: any, // React$ElementType
   key: null | string,
@@ -473,11 +501,14 @@ export function createFiberFromTypeAndProps(
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
+  // 默认将 fiberTag 设置为未确定的组件类型，这意味着我们还不知道是类组件还是函数组件
   let fiberTag = IndeterminateComponent;
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
+  // 用于存储最终解析后的组件类型，通常与 type 相同。
   let resolvedType = type;
   if (typeof type === 'function') {
     if (shouldConstruct(type)) {
+      // 类组件
       fiberTag = ClassComponent;
       if (__DEV__) {
         resolvedType = resolveClassForHotReloading(resolvedType);
@@ -488,12 +519,15 @@ export function createFiberFromTypeAndProps(
       }
     }
   } else if (typeof type === 'string') {
+    // 普通的 DOM 元素
     fiberTag = HostComponent;
   } else {
+    // 处理特殊的 React 元素类型
     getTag: switch (type) {
       case REACT_FRAGMENT_TYPE:
         return createFiberFromFragment(pendingProps.children, mode, lanes, key);
       case REACT_STRICT_MODE_TYPE:
+        // 严格模式
         fiberTag = Mode;
         mode |= StrictLegacyMode;
         if (enableStrictEffects && (mode & ConcurrentMode) !== NoMode) {
@@ -502,24 +536,31 @@ export function createFiberFromTypeAndProps(
         }
         break;
       case REACT_PROFILER_TYPE:
+        // 如果是 Profiler
         return createFiberFromProfiler(pendingProps, mode, lanes, key);
       case REACT_SUSPENSE_TYPE:
+        // Suspense
         return createFiberFromSuspense(pendingProps, mode, lanes, key);
       case REACT_SUSPENSE_LIST_TYPE:
+        // SuspenseList
         return createFiberFromSuspenseList(pendingProps, mode, lanes, key);
       case REACT_OFFSCREEN_TYPE:
+        // Offscreen
         return createFiberFromOffscreen(pendingProps, mode, lanes, key);
       case REACT_LEGACY_HIDDEN_TYPE:
+        // LegacyHidden
         if (enableLegacyHidden) {
           return createFiberFromLegacyHidden(pendingProps, mode, lanes, key);
         }
       // eslint-disable-next-line no-fallthrough
       case REACT_SCOPE_TYPE:
+        // Scope
         if (enableScopeAPI) {
           return createFiberFromScope(type, pendingProps, mode, lanes, key);
         }
       // eslint-disable-next-line no-fallthrough
       case REACT_CACHE_TYPE:
+        // Cache
         if (enableCache) {
           return createFiberFromCache(pendingProps, mode, lanes, key);
         }
@@ -538,24 +579,30 @@ export function createFiberFromTypeAndProps(
       // eslint-disable-next-line no-fallthrough
       default: {
         if (typeof type === 'object' && type !== null) {
+          // 特殊的 React 元素类型
           switch (type.$$typeof) {
             case REACT_PROVIDER_TYPE:
+              // 上下文提供者组件
               fiberTag = ContextProvider;
               break getTag;
             case REACT_CONTEXT_TYPE:
               // This is a consumer
+              // 上下文消费者组件
               fiberTag = ContextConsumer;
               break getTag;
             case REACT_FORWARD_REF_TYPE:
+              // ForwardRef 组件
               fiberTag = ForwardRef;
               if (__DEV__) {
                 resolvedType = resolveForwardRefForHotReloading(resolvedType);
               }
               break getTag;
             case REACT_MEMO_TYPE:
+              // Memo 组件
               fiberTag = MemoComponent;
               break getTag;
             case REACT_LAZY_TYPE:
+              // Lazy 加载组件
               fiberTag = LazyComponent;
               resolvedType = null;
               break getTag;
@@ -589,6 +636,7 @@ export function createFiberFromTypeAndProps(
     }
   }
 
+  // 创建 Fiber 节点
   const fiber = createFiber(fiberTag, pendingProps, key, mode);
   fiber.elementType = type;
   fiber.type = resolvedType;

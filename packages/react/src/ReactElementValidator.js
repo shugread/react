@@ -478,6 +478,7 @@ export function createElementWithValidation(type, props, children) {
     }
   }
 
+  // 创建元素，在生产环境中会直接调用该函数
   const element = createElement.apply(this, arguments);
 
   // The result can be nullish if a mock or a custom function is used.
